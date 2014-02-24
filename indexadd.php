@@ -1,107 +1,103 @@
-<?
+<?php
+/*+----------------------------------------------------+*/
+/*| made by putyn @ tbdev 31/05/2009 updated 30/09/2009|*/
+/*+----------------------------------------------------+*/
 
-/*
-// +--------------------------------------------------------------------------+
-// | Project:    TBDevYSE - TBDev Yuna Scatari Edition                        |
-// +--------------------------------------------------------------------------+
-// | This file is part of TBDevYSE. TBDevYSE is based on TBDev,               |
-// | originally by RedBeard of TorrentBits, extensively modified by           |
-// | Gartenzwerg.                                                             |
-// |                                                                          |
-// | TBDevYSE is free software; you can redistribute it and/or modify         |
-// | it under the terms of the GNU General Public License as published by     |
-// | the Free Software Foundation; either version 2 of the License, or        |
-// | (at your option) any later version.                                      |
-// |                                                                          |
-// | TBDevYSE is distributed in the hope that it will be useful,              |
-// | but WITHOUT ANY WARRANTY; without even the implied warranty of           |
-// | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            |
-// | GNU General Public License for more details.                             |
-// |                                                                          |
-// | You should have received a copy of the GNU General Public License        |
-// | along with TBDevYSE; if not, write to the Free Software Foundation,      |
-// | Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA            |
-// +--------------------------------------------------------------------------+
-// |                                               Do not remove above lines! |
-// +--------------------------------------------------------------------------+
-*/
+require_once "include/bittorrent.php";
 
-require_once("include/bittorrent.php");
 dbconn();
 loggedinorreturn();
-if (get_user_class() < UC_MODERATOR)
-	stderr($tracker_lang["error"], $tracker_lang["access_denied"]);
 
-$types = array(
-	"notemplate" => array("type" => "notemplate", "name" => "Без шаблона"),
-	"video" => array("type" => "video", "name" => "Видео"),
-	"games" => array("type" => "games", "name" => "Игры"),
-	"music" => array("type" => "music", "name" => "Музыка"),
-	"soft" => array("type" => "soft", "name" => "Программы"),
-);
 
-$templates = array(
-	"notemplate" => array("toptemplate" => "", "centertemplate" => "", "bottomtemplate" => ""),
-	"video" => array("toptemplate" => "[b]Жанр:[/b] \n[b]Режиссер:[/b] \n[b]В ролях:[/b] ", "centertemplate" => "[b]О фильме:[/b] ", "bottomtemplate" => "[b]Качество:[/b] \n[b]Видео:[/b] \n[b]Аудио:[/b] \n[b]Продолжительность:[/b] \n[b]Язык:[/b] \n[b]Перевод:[/b] "),
-	"music" => array("toptemplate" => "[b]Исполнитель:[/b] \n[b]Альбом:[/b] \n[b]Год выпуска:[/b] \n[b]Стиль:[/b] ", "centertemplate" => "[b]Треклист:[/b] ", "bottomtemplate" => "[b]Звук:[/b] \n[b]Продолжительность:[/b] "),
-	"games" => array("toptemplate" => "[b]Название:[/b] \n[b]Производитель:[/b] \n[b]Жанр:[/b] \n[b]Год выпуска:[/b] ", "centertemplate" => "[b]Описание:[/b] ", "bottomtemplate" => "[b]Системные требования:[/b] \n[b]Скрины:[/b] "),
-	"soft" => array("toptemplate" => "[b]Название:[/b] \n[b]Производитель:[/b] \n[b]Год выпуска:[/b] ", "centertemplate" => "[b]Описание:[/b] ", "bottomtemplate" => "[b]Системные требования:[/b] "),
-);
 
-if (empty($_GET["type"])) {
-stdhead("Выберите тип релиза");
-?>
-<form action="indexadd.php" method="get">
-	<table border="1" cellspacing="0" cellpadding="3" width="20%">
-	<tr><td class="heading" align="right">Тип</td><td>
-	<select name="type">
-<?
-	foreach ($types as $type)
-		print("<option value=\"" . $type["type"] . "\">" . $type["name"] . "</option>");
-?>
-	</select>
-	</td></tr>
-	<tr><td align="center" colspan="2"><input type="submit" class=btn value="Дальше"></td></tr>
+if (get_user_class() < UC_ADMINISTRATOR)
+	stderr("Error", "Access denied.");
+	
+	//dont forget to edit this 
+	$maxclass = UC_SYSOP;
+	$firstclass = UC_USER;
+	$use_subject = true;
+	
+	function mkpositive($n)
+	{
+		return strstr((string)$n,"-") ? 0 : $n ; // this will return 0 for negative numbers 
+	}
+	
+	if ($HTTP_SERVER_VARS["REQUEST_METHOD"] == "POST")
+	{
+		$classes = isset($_POST["classes"]) ? $_POST["classes"] : "";
+		$all = ($classes[0] == 255 ? true : false );
+		
+		if(empty($classes) || sizeof($classes) == 0 )
+			stderr("Err","You need at least one class selected");
+		$a_do = array("add","remove","remove_all");
+		$do = isset($_POST["do"]) && in_array($_POST["do"],$a_do) ? $_POST["do"] : "";
+		if(empty($do))
+			stderr("Err","wtf are you trying to do ");
+			
+		$invites = isset($_POST["invites"]) ? 0+$_POST["invites"] : 0;
+		if($invites == 0 && ($do == "add" || $do == "remove"))
+			stderr("Err","You can't remove/add 0");
+			
+		$sendpm = isset($_POST["pm"]) && $_POST["pm"] == "yes" ? true : false;
+		
+		$pms = array();
+		$users = array();
+		//select the users
+		$q = mysql_query("SELECT id,invites,username FROM users ".($all ? "" : "WHERE class in (".join(",",$classes).")" )." ORDER BY id desc ") or sqlerr(__FILE__, __LINE__);
+		if(mysql_num_rows($q) == 0)
+		stderr("Sorry","There are no users in the class(es) you selected");
+			while($a = mysql_fetch_assoc($q))
+			{
+				$users[] = "(".$a["id"].", ".($do == "remove_all" ? 0 : ($do == "add" ? $a["invites"] + $invites : mkpositive($a["invites"] - $invites))) .")";
+				if($sendpm)
+				{
+$subject = sqlesc($do == "remove_all" && $do == "remove" ?  "" : "");
+$body = sqlesc("".$a['username']."\n \n ". ($do == "remove_all" ?  "Р’СЃРµ РїСЂРёРіР»Р°С€РµРЅРёСЏ Р±С‹Р»Рё РѕС‚РЅСЏС‚С‹ Сѓ Р’Р°С€РµРіРѕ РєР»Р°СЃСЃР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№" : ($do == "add" ? "$invites".($invites > 1 ? " РїСЂРёРіР»Р°С€РµРЅРёСЏ Р±С‹Р»Рё РґРѕР±Р°РІР»РµРЅС‹ " : " РїСЂРёРіР»Р°С€РµРЅРёРµ Р±С‹Р»Рѕ РґРѕР±Р°РІР»РµРЅРѕ ")." Р’Р°С€РµРјСѓ РєР»Р°СЃСЃСѓ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№" : "$invites".($invites > 1 ? " РїСЂРёРіР»Р°С€РµРЅРёСЏ Р±С‹Р»Рё РѕС‚РЅСЏС‚С‹ " : " РїСЂРёРіР»Р°С€РµРЅРёРµ Р±С‹Р»Рѕ РѕС‚РЅСЏС‚Рѕ ")."Сѓ Р’Р°С€РµР№ РіСЂСѓРїРїС‹ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№")). " !\n \n РђРґРјРёРЅРёСЃС‚СЂР°С†РёСЏ ".$tracker_lang['site_name']." ");
+$pms[] = "(0,".$a['id'].",".sqlesc(get_date_time()).",$body ".($use_subject ? ",$subject" : "").")" ;
+				}
+			}
+			
+			if(sizeof($users) > 0)
+				$r = mysql_query("INSERT INTO users(id,invites) VALUES ".join(",",$users)." ON DUPLICATE key UPDATE invites=values(invites) ") or sqlerr(__FILE__, __LINE__);
+			if(sizeof($pms) > 0)
+				$r1 = mysql_query("INSERT INTO messages (sender, receiver, added, msg ".($use_subject ? ", subject" : "").") VALUES ".join(",",$pms)." ") or sqlerr(__FILE__, __LINE__);
+				
+			if($r && ($sendpm ? $r1 : true))
+			{
+				header("Refresh: 2; url=".$_SERVER["PHP_SELF"]);
+				stderr("Succes","Operation done!");
+			}
+			else
+				stderr("Error","Something was wrong");
+	}
+	$HTMLOUT ='';
+	$HTMLOUT .= "<form  action=\"".$_SERVER["PHP_SELF"]."\" method=\"post\">
+	<table width=\"500\" cellpadding=\"5\" cellspacing=\"0\" border=\"1\" align=\"center\">
+	  <tr>
+		<td valign=\"top\" align=\"right\">Classes</td>
+		<td width=\"100%\" align=\"left\" colspan=\"3\">";
+				$HTMLOUT .= "<label for=\"all\"><input type=\"checkbox\" name=\"classes[]\" value=\"255\" id=\"all\" />Р’СЃРµРј РєР»Р°СЃСЃР°Рј</label><br/>\n";
+				for($i=$firstclass;$i<$maxclass+1; $i++ )
+				$HTMLOUT .= "<label for=\"c$i\"><input type=\"checkbox\" name=\"classes[]\" value=\"$i\" id=\"c$i\" />".get_user_class_name($i)." </label><br/>\n";
+	$HTMLOUT .= "</td>
+	  </tr>
+	  <tr>
+		<td valign=\"top\" align=\"center\" >Options</td>
+		<td valign=\"top\">Do
+		  <select name=\"do\" >
+			<option value=\"add\">add invites</option>
+			<option value=\"remove\">remove invites</option>
+			<option value=\"remove_all\">Remove all invites</option>
+		  </select></td>
+		<td>Invites <input type=\"text\" maxlength=\"2\" name=\"invites\" size=\"5\" />
+		</td>
+		<td >Send pm <select name=\"pm\" ><option value=\"no\">no</option><option value=\"yes\">yes</option></select></td></tr>
+		<tr><td colspan=\"4\" align=\"center\"><input type=\"submit\" value=\"Do!\" /></td></tr>
 	</table>
-</form>
-<?
-stdfoot();
-die;
-} else
-	$type = $_GET["type"];
-
-stdhead("Добавить релиз - ".$types[$type]["name"]);
-
-$cats = genrelist();
-$categories = "<select name=\"cat\"><option selected>Выберите категорию</option>";
-foreach ($cats as $cat) {
-	$cat_id = $cat["id"];
-	$cat_name = $cat["name"];
-	$categories .= "<option value=\"$cat_id\">$cat_name</option>";
-}
-$categories .= "</select>";
-
-?>
-
-<form name="index" action="takeindex.php" method="post">
-<table border="0" cellspacing="0" cellpadding="5">
-<tr><td class="colhead" colspan="2">Выбранный шаблон: <?=$types[$type]["name"];?></td></tr>
-<?
-tr("Название релиза", "<input type=\"text\" name=\"name\" size=\"80\" /><br />Пример: Смерть Президента (2006) DVDRip\n", 1);
-tr("Постер", "<input type=\"text\" name=\"poster\" size=\"80\" /><br />Залить картинку на <a href=\"http://www.imageshack.us\">ImageShack</a>", 1);
-?>
-<tr><td width="" class="heading" valign="top" align="right">Верхний шаблон</td><td valign="top" align="left"><?=textbbcode("index", "top", $templates[$type]["toptemplate"]);?></td></tr>
-<tr><td width="" class="heading" valign="top" align="right">Средний шаблон</td><td valign="top" align="left"><?=textbbcode("index", "center", $templates[$type]["centertemplate"]);?></td></tr>
-<tr><td width="" class="heading" valign="top" align="right">Нижний шаблон</td><td valign="top" align="left"><?=textbbcode("index", "bottom", $templates[$type]["bottomtemplate"]);?></td></tr>
-<?
-tr("Номер торрента", "<input type=\"text\" name=\"torrentid\" size=\"60\" /><br />Пример: $DEFAULTBASEURL/details.php?id=<b>6764</b><br />Выделенное жирным - и есть номер торрента\n", 1);
-tr("URL IMDB", "<input type=\"text\" name=\"imdb\" size=\"60\" /><br />Пример: http://www.imdb.com/title/tt0408306/\n", 1);
-tr("Категория", $categories, 1);
-?>
-<tr><td align="center" colspan="2"><input type="submit" value="Добавить" /></td></tr>
-</table>
-</form>
-
-<?
-stdfoot();
+	</form>";
+	
+	stdhead("Add/Remove invites");
+        print($HTMLOUT);
+        stdfoot();
 ?>
