@@ -1,4 +1,4 @@
-<?
+<?php
 if (!defined('UC_SYSOP'))
 	die('Direct access denied.');
 ?><html><head>
@@ -7,6 +7,14 @@ if (!defined('UC_SYSOP'))
 <script language="javascript" type="text/javascript" src="js/resizer.js"></script>
 <!--<script language="javascript" type="text/javascript" src="js/tooltips.js"></script>-->
 <script language="javascript" type="text/javascript" src="js/jquery.js"></script>
+<script language="javascript" type="text/javascript" src="js/jquery.migrate.js"></script>
+<script language="javascript" type="text/javascript" src="js/jquery.cookies.js"></script>
+
+<!-- GreenSock JS -->
+<script language="javascript" type="text/javascript" src="js/TweenMax.min.js"></script>
+<!-- GreenSock jQuery plugin for .animate() via GSAP -->
+<script language="javascript" type="text/javascript" src="js/jquery.gsap.min.js"></script>
+
 <script language="javascript" type="text/javascript" src="js/blocks.js"></script>
 <script language="javascript" type="text/javascript" src="js/lightbox.js"></script>
 <script type="text/javascript">
@@ -32,11 +40,17 @@ function initSpoilers(context) {
 
 $(document).ready(function(){
 	initSpoilers('body');
-	$(function() {$('a[@rel*=lightbox]').lightBox();});
+	$(function() {$('a[rel*=lightbox]').lightBox();});
 });
 
 //-->
 </script>
+<?
+if($keywords)
+    echo "<meta name=\"keywords\" content=\"$keywords\" />\n";
+if($description)
+    echo "<meta name=\"description\" content=\"$description\" />\n";
+?>
 <link rel="alternate" type="application/rss+xml" title="Последние торренты" href="<?=$DEFAULTBASEURL?>/rss.php">
 <link rel="shortcut icon" href="<?=$DEFAULTBASEURL;?>/favicon.ico" type="image/x-icon" />
 
@@ -69,7 +83,7 @@ $(document).ready(function(){
 <? } ?>
 <? if ($CURUSER) { ?>
 &nbsp;&#8226;&nbsp;
-<a href="log.php"><font color="#FFFFFF">Журнал</font></a>
+<a href="log.php"><font color="#FFFFFF"><?=$tracker_lang['logs'];?></font></a>
 <? } ?>
 &nbsp;&#8226;&nbsp;
 <a href="rules.php"><font color="#FFFFFF"><?=$tracker_lang['rules'];?></font></a>
@@ -81,6 +95,8 @@ $(document).ready(function(){
 &nbsp;&#8226;&nbsp;-->
 <a href="staff.php"><font color="#FFFFFF"><?=$tracker_lang['staff'];?></font></a>
 <? } ?>
+&nbsp;&#8226;&nbsp;
+<a href="contactus.php"><font color="#FFFFFF"><?=$tracker_lang['contactus'];?></font></a>
 </td></tr>
 </table>
 <!-- /////// Top Navigation Menu for unregistered-->
@@ -245,13 +261,13 @@ if ($CURUSER) {
 
 	$userbar = "<center><a href=\"my.php\"><img src=\"" . ( $CURUSER["avatar"] ? $CURUSER["avatar"] : "./themes/$ss_uri/images/default_avatar.gif" ) . "\" width=\"100\" alt=\"".$tracker_lang['avatar']."\" title=\"".$tracker_lang['avatar']."\" border=\"0\" /></a></center>
 	<br />
-	<font color=\"1900D1\">".$tracker_lang['ratio'].":</font>&nbsp;$ratio<br />
-	<font color=\"green\">".$tracker_lang['uploaded'].":</font>&nbsp;$uped<br />
-	<font color=\"red\">".$tracker_lang['downloaded'].":</font>&nbsp;$downed<br />
-	<font color=\"darkblue\">Бонус:</font>&nbsp;<a href=\"mybonus.php\" class=\"online\"><font color=black>$CURUSER[bonus]</font></a><br />
-	<font color=\"blue\">".$tracker_lang['pm'].":</font>&nbsp;$message_in $message_out<br />
-	".$tracker_lang['torrents'].":&nbsp;<img alt=\"".$tracker_lang['seeding']."\" title=\"".$tracker_lang['seeding']."\" src=\"./themes/$ss_uri/images/arrowup.gif\">&nbsp;<font color=green><span class=\"smallfont\">$activeseed</span></font>&nbsp;<img alt=\"".$tracker_lang['leeching']."\" title=\"".$tracker_lang['leeching']."\" src=\"./themes/$ss_uri/images/arrowdown.gif\">&nbsp;<font color=red><span class=\"smallfont\">$activeleech</span></font><br />
-	".$tracker_lang['clock'].":&nbsp;<span id=\"clock2\">".$tracker_lang['loading']."...</span>
+	<font color=\"1900D1\">{$tracker_lang['ratio']}:</font>&nbsp;{$ratio}<br />
+	<font color=\"green\">{$tracker_lang['uploaded']}:</font>&nbsp;{$uped}<br />
+	<font color=\"red\">{$tracker_lang['downloaded']}:</font>&nbsp;{$downed}<br />
+	<font color=\"darkblue\">{$tracker_lang['bonus']}:</font>&nbsp;<a href=\"mybonus.php\" class=\"online\"><font color=black>$CURUSER[bonus]</font></a><br />
+	<font color=\"blue\">{$tracker_lang['pm']}:</font>&nbsp;{$message_in} {$message_out}<br />
+	{$tracker_lang['torrents']}:&nbsp;<img alt=\"{$tracker_lang['seeding']}\" title=\"{$tracker_lang['seeding']}\" src=\"./themes/$ss_uri/images/arrowup.gif\">&nbsp;<font color=green><span class=\"smallfont\">{$activeseed}</span></font>&nbsp;<img alt=\"{$tracker_lang['leeching']}\" title=\"{$tracker_lang['leeching']}\" src=\"./themes/$ss_uri/images/arrowdown.gif\">&nbsp;<font color=red><span class=\"smallfont\">{$activeleech}</span></font><br />
+	{$tracker_lang['clock']}:&nbsp;<span id=\"clock2\">{$tracker_lang['loading']}...</span>
 
 <!-- clock hack -->
 <script type=\"text/javascript\">
